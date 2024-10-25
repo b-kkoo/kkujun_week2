@@ -1,39 +1,47 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Pool;
 
 public class ObjectPool : MonoBehaviour
 {
-    public GameObject prefab;
-    private List<GameObject> pool = new List<GameObject>();
-    public int poolSize = 300;
-
-    void Start()
+    // 오브젝트 풀 데이터를 정의할 데이터 모음 정의
+    [System.Serializable]
+    public class Pool
     {
-        // 미리 poolSize만큼 게임오브젝트를 생성한다.
-        for (int i = 0; i < poolSize; i++)
+        public string tag;
+        public GameObject prefab;
+        public int size;
+    }
+
+    public List<Pool> Pools;
+    public Dictionary<string, Queue<GameObject>> PoolDictionary;
+
+    private void Awake()
+    {
+        PoolDictionary = new Dictionary<string, Queue<GameObject>>();
+        foreach (var pool in Pools)
         {
-            GameObject obj = Instantiate(prefab);
-            obj.gameObject.SetActive(false);
-            pool.Add(obj);
+            Queue<GameObject> objectPool = new Queue<GameObject>();
+            for (int i = 0; i < pool.size; i++)
+            {
+                GameObject obj = Instantiate(pool.prefab);
+                obj.SetActive(false);
+                objectPool.Enqueue(obj);
+            }
+            PoolDictionary.Add(pool.tag, objectPool);
         }
     }
 
-    public GameObject Get()
+    public GameObject Get(string tag)
     {
-        // 꺼져있는 게임오브젝트를 찾아 active한 상태로 변경하고 return 한다
-        foreach (GameObject obj in pool)
-        {
-            if (!obj.activeInHierarchy)
-            {
-                obj.SetActive(true);
-                return obj;
-            }
-        }
+        if (!PoolDictionary.ContainsKey(tag))
+            return null;
 
-        GameObject newObj = Instantiate(prefab);
-        pool.Add(newObj);
-        return newObj;
+        GameObject obj = PoolDictionary[tag].Dequeue();
+        PoolDictionary[tag].Enqueue(obj);
+        obj.SetActive(true);
+        return obj;
     }
 
     public void Release(GameObject obj)
